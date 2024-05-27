@@ -13,3 +13,9 @@ Rust 生态系统
 - tracing: 记录各种日志
 - tracing-subscriber: 输出日志
 - open-telemetry\*: 和 open-telemetry 生态互动
+
+## 宏
+
+- derive_builder: 构建数据结构的 builder
+- derive_more: 标准库 trait 的自动实现
+- strum: enum 相关的 trait 的自动实现
