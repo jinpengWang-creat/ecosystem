@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     // console layer for tracing-subscriber
-    let console = fmt::Layer::new()
+    let console = fmt::layer()
         .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .pretty()
         .with_filter(LevelFilter::DEBUG);

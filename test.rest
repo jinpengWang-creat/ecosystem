@@ -1,5 +1,23 @@
 ### index handler
 
 GET http://localhost:8080/
-### long task
-GET http://localhost:8080/long
+### get user
+GET http://localhost:8080/user
+
+### update user
+PATCH  http://localhost:8080/update
+Content-Type: application/json
+
+{
+    "age": 20,
+    "skills": ["java", "python", "nodejs", "Rust"]
+}
+
+### invalid request
+PATCH http://localhost:8080/update
+Content-Type: application/json
+
+{
+    "age": 20,
+    "skills": "java"
+}
