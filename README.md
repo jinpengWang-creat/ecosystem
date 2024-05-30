@@ -19,3 +19,11 @@ Rust 生态系统
 - derive_builder: 构建数据结构的 builder
 - derive_more: 标准库 trait 的自动实现
 - strum: enum 相关的 trait 的自动实现
+
+## 数据转换 serde 生态
+
+- serde 介绍
+- serde 背后发生了什么
+- serde-json / serde-yaml / serde-toml / bincode / ...
+- serde-with
+- serde 使用的注意事项
