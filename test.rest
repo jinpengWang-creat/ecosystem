@@ -1,11 +1,11 @@
 ### index handler
 
-GET http://localhost:8080/
+GET http://localhost:8081/
 ### get user
-GET http://localhost:8080/user
+GET http://localhost:8081/user
 
 ### update user
-PATCH  http://localhost:8080/update
+PATCH  http://localhost:8081/update
 Content-Type: application/json
 
 {
@@ -14,7 +14,7 @@ Content-Type: application/json
 }
 
 ### invalid request
-PATCH http://localhost:8080/update
+PATCH http://localhost:8081/update
 Content-Type: application/json
 
 {
