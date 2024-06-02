@@ -37,3 +37,40 @@ Rust 生态系统
 - tokio-utils
 - loom
 - axum
+
+## Tower/Hyper 生态
+
+- tower Service trait: 如何组合服务功能
+- tower utility services
+  - rate limit
+  - load balance
+  - ...
+- tower-http: HTTP 相关的 service
+- Hyper: web 客户端和服务端协议
+  - reqwest
+  - warp
+  - axum
+  - tonic
+
+## 数据库处理
+
+- ORM:
+  - diesel
+  - seaORM
+- Sql toolkits: sqlx
+  - FromRow
+  - Row
+- 为什么我们要避免使用 ORM
+  - 性能
+  - 不太需要的额外抽象
+  - 过于中庸，限制太多
+    - insert into on conflict ...
+    - CTE
+  - sql injection 已经收到足够重视
+  - 语言绑定，平台绑定
+- 构建搞笑且复杂的 SQL 是每个工程师的基本功
+- 构建一个 url shortener
+  - tokio
+  - axum
+  - sqlx
+  - nanoid
