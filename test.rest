@@ -24,12 +24,15 @@ Content-Type: application/json
 
 
 ### shortener
-POST http://localhost:9876/
+POST http://localhost:8080/
 Content-Type: application/json
 
 {
-    "url": "https://www.baidu.com/"
+    "url": "https://www.baidu1.com/"
 }
 
 ### get-url
 GET http://localhost:9876/YlC0pW
+
+### get-url refactor
+GET http://0.0.0.0:8080/YntiKO

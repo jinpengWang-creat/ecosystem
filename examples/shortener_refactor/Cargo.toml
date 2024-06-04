@@ -1,0 +1,31 @@
+[package]
+name = "shortener_refactor"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+anyhow = "1.0.86"
+sqlx = { version = "0.7.4", features = [
+    "postgres",
+    "runtime-tokio",
+    "tls-rustls",
+] }
+thiserror = "1.0.61"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde = { version = "1.0.202", features = ["derive"] }
+serde_json = "1.0.117"
+tokio = { version = "1.37.0", features = [
+    "fs",
+    "rt",
+    "rt-multi-thread",
+    "macros",
+] }
+axum = { version = "0.7.5", features = ["http2", "query", "tracing"] }
+http = "1.1.0"
+dotenvy = "0.15.0"
+nanoid = "0.4.0"
+lazy_static = "1.4.0"
