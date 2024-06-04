@@ -48,3 +48,4 @@ console-subscriber = "0.2.0"
 
 loom = "0.7"
 nanoid = "0.4.0"
+axum-macros = "0.4.1"

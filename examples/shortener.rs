@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use axum_macros::debug_handler;
 use http::{header::LOCATION, HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -71,6 +72,7 @@ async fn shorten(
     Ok((StatusCode::CREATED, body))
 }
 
+#[debug_handler]
 async fn redirect(
     Path(id): Path<String>,
     State(state): State<AppState>,
