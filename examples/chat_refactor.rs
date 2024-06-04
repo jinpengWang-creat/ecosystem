@@ -13,7 +13,7 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
 };
 use tokio_util::codec::Framed;
-use tracing::{info, level_filters::LevelFilter, warn};
+use tracing::{info, instrument, level_filters::LevelFilter, warn};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -162,7 +162,7 @@ impl Display for ChatMessage {
                 username,
                 left_time,
                 left_addr: _,
-            }) => write!(f, "({})[{} join the chat!] ", left_time, username),
+            }) => write!(f, "({})[{} left the chat!] ", left_time, username),
             ChatMessage::Chat(Chat {
                 sender,
                 msg,
@@ -204,6 +204,7 @@ async fn main() -> Result<()> {
     }
 }
 
+#[instrument]
 async fn handle_client(
     stream: TcpStream,
     addr: SocketAddr,
@@ -232,13 +233,17 @@ fn start_peer_receiver(
     message_sender: Sender<ChatMessage>,
 ) {
     tokio::spawn(async move {
-        while let Some(Ok(msg)) = message_receiver.next().await {
-            if msg.eq("/quit") {
-                break;
-            }
-            let msg = Chat::new(&username, msg, addr);
-            if let Err(e) = message_sender.send(ChatMessage::Chat(msg)).await {
-                warn!("send chat message failed: {:?}", e);
+        while let Some(msg_ret) = message_receiver.next().await {
+            if let Ok(msg) = msg_ret {
+                if msg.eq("/quit") {
+                    break;
+                }
+                let msg = Chat::new(&username, msg, addr);
+                if let Err(e) = message_sender.send(ChatMessage::Chat(msg)).await {
+                    warn!("send chat message failed: {:?}", e);
+                }
+            } else {
+                warn!("receive chat message failed: {:?}", msg_ret);
             }
         }
         let user_left = UserLeft::new(username, addr);
