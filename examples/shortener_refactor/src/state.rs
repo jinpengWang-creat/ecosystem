@@ -1,11 +1,20 @@
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use serde::Deserialize;
+use sqlx::{postgres::PgPoolOptions, FromRow, PgPool};
 use tracing::info;
 
-use crate::{ShortenError, ShortenUrl};
+use crate::ShortenError;
 const MAX_CONNECTION: u32 = 12;
 #[derive(Debug, Clone)]
 pub struct AppState {
     db: PgPool,
+}
+
+#[derive(FromRow, Debug, Deserialize)]
+struct ShortenUrl {
+    #[sqlx(default)]
+    id: String,
+    #[sqlx(default)]
+    url: String,
 }
 
 impl AppState {
