@@ -35,4 +35,4 @@ Content-Type: application/json
 GET http://localhost:9876/YlC0pW
 
 ### get-url refactor
-GET http://0.0.0.0:8080/YntiKO
+GET http://0.0.0.0:8080/YntiKO/1
