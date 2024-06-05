@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use axum::{
     extract::{Path, State},
-    response::IntoResponse,
+    response::{Html, IntoResponse},
     routing::{get, post},
     Json, Router,
 };
@@ -11,9 +11,10 @@ use http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use thiserror::Error;
 use tokio::net::TcpListener;
+use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing::{info, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 const MAX_CONNECTION: u32 = 12;
 #[derive(Debug, Clone)]
@@ -36,6 +37,26 @@ struct ShortenRequest {
 #[derive(Debug, Serialize)]
 struct ShortenResponse {
     url: String,
+}
+
+#[derive(Debug, Error)]
+enum ShortenError {
+    #[error("{0}")]
+    EnvError(#[from] dotenvy::Error),
+    #[error("{0}")]
+    SqlError(#[from] sqlx::Error),
+    #[error("id: {0} not found!")]
+    Notfound(String),
+}
+
+impl IntoResponse for ShortenError {
+    fn into_response(self) -> axum::response::Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("<h1>{}</h1>", self)),
+        )
+            .into_response()
+    }
 }
 
 lazy_static::lazy_static! {
@@ -68,11 +89,8 @@ async fn main() -> Result<()> {
 async fn shortener_handler(
     State(state): State<AppState>,
     Json(ShortenRequest { url }): Json<ShortenRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let id = state
-        .shorten(&url)
-        .await
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+) -> Result<impl IntoResponse, ShortenError> {
+    let id = state.shorten(&url).await?;
     let body = Json(ShortenResponse {
         url: format!("http://{}/{}", &*LISTEN_ADDR, id),
     });
@@ -82,53 +100,47 @@ async fn shortener_handler(
 async fn redirect_handler(
     Path(id): Path<String>,
     State(state): State<AppState>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let url = state
-        .get_url(&id)
-        .await
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+) -> Result<impl IntoResponse, ShortenError> {
+    let url = state.get_url(&id).await?;
     info!("Redirected to: {}", url);
     let mut headers = HeaderMap::new();
     headers.insert(LOCATION, url.parse().unwrap());
     Ok((StatusCode::PERMANENT_REDIRECT, headers, ""))
 }
 impl AppState {
-    pub async fn try_new() -> Result<Self> {
+    pub async fn try_new() -> Result<Self, ShortenError> {
+        let url = &dotenvy::var("DATABASE_URL")?;
         let db = PgPoolOptions::new()
             .max_connections(MAX_CONNECTION)
-            .connect(&dotenvy::var("DATABASE_URL")?)
+            .connect(url)
             .await?;
         Ok(Self { db })
     }
 
-    pub async fn shorten(&self, url: &str) -> Result<String> {
+    pub async fn shorten(&self, url: &str) -> Result<String, ShortenError> {
         info!("short url: {:?}", url);
         let row = sqlx::query_as("SELECT id, url FROM shorten_urls WHERE url = $1")
             .bind(url)
-            .fetch_one(&self.db)
-            .await;
+            .fetch_optional(&self.db)
+            .await?;
         info!("get row: {:?}", row);
         let id = match row {
-            Ok(ShortenUrl { id, .. }) => id,
-            Err(sqlx::Error::RowNotFound) => self.insert_url(url).await?,
-            Err(e) => {
-                warn!("error: {:?}", e);
-                return Err(e.into());
-            }
+            Some(ShortenUrl { id, .. }) => id,
+            None => self.insert_url(url).await?,
         };
         Ok(id)
     }
 
-    async fn insert_url(&self, url: &str) -> Result<String> {
+    async fn insert_url(&self, url: &str) -> Result<String, ShortenError> {
         info!("url: {} not found, do insert", url);
         let id = loop {
             let id = nanoid::nanoid!(6);
             match sqlx::query_as("SELECT COUNT(1) FROM shorten_urls WHERE id = $1")
                 .bind(&id)
-                .fetch_one(&self.db)
-                .await
+                .fetch_optional(&self.db)
+                .await?
             {
-                Ok::<(i32,), _>((count,)) if count > 0 => continue,
+                Some::<(i32,)>((count,)) if count > 0 => continue,
                 _ => break id,
             }
         };
@@ -142,11 +154,15 @@ impl AppState {
         Ok(row.id)
     }
 
-    pub async fn get_url(&self, id: &str) -> Result<String> {
-        let row: ShortenUrl = sqlx::query_as("SELECT id, url FROM shorten_urls WHERE id = $1")
-            .bind(id)
-            .fetch_one(&self.db)
-            .await?;
-        Ok(row.url)
+    pub async fn get_url(&self, id: &str) -> Result<String, ShortenError> {
+        let row: Option<ShortenUrl> =
+            sqlx::query_as("SELECT id, url FROM shorten_urls WHERE id = $1")
+                .bind(id)
+                .fetch_optional(&self.db)
+                .await?;
+        match row {
+            Some(row) => Ok(row.url),
+            None => Err(ShortenError::Notfound(id.to_string())),
+        }
     }
 }
