@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use sqlx::{postgres::PgPoolOptions, FromRow, PgPool};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::ShortenError;
 const MAX_CONNECTION: u32 = 12;
@@ -27,36 +27,27 @@ impl AppState {
         Ok(Self { db })
     }
 
+    // id error message: Err(Database(PgDatabaseError { severity: Error, code: "23505", message: "重复键违反唯一约束\"shorten_urls_pkey\"", detail: Some("键值\"(id)=(1     )\" 已经存在"), hint: None, position: None, where: None, schema: Some("public"), table: Some("shorten_urls"), column: None, data_type: None, constraint: Some("shorten_urls_pkey"), file: Some("nbtinsert.c"), line: Some(673), routine: Some("_bt_check_unique") }))
     pub async fn shorten(&self, url: &str) -> Result<String, ShortenError> {
         info!("short url: {:?}", url);
-        let row = sqlx::query_as("SELECT id, url FROM shorten_urls WHERE url = $1")
-            .bind(url)
-            .fetch_optional(&self.db)
-            .await?;
-        info!("get row: {:?}", row);
-        let id = match row {
-            Some(ShortenUrl { id, .. }) => id,
-            None => self.insert_url(url).await?,
-        };
-        Ok(id)
+        loop {
+            match self.insert_url(url).await {
+                Ok(id) => break Ok(id),
+                Err(ShortenError::DatabaseError(sqlx::Error::Database(err)))
+                    if Some("23505".into()).eq(&err.code()) =>
+                {
+                    warn!("id conflict! error: {:?}", err);
+                }
+                Err(e) => break Err(e),
+            };
+        }
     }
 
     async fn insert_url(&self, url: &str) -> Result<String, ShortenError> {
         info!("url: {} not found, do insert", url);
-        let id = loop {
-            let id = nanoid::nanoid!(6);
-            match sqlx::query_as("SELECT COUNT(1) FROM shorten_urls WHERE id = $1")
-                .bind(&id)
-                .fetch_optional(&self.db)
-                .await?
-            {
-                Some::<(i32,)>((count,)) if count > 0 => continue,
-                _ => break id,
-            }
-        };
-        info!("get id: {:?}", id);
+        let id = nanoid::nanoid!(6);
         let row: ShortenUrl =
-            sqlx::query_as("INSERT INTO shorten_urls (id, url) VALUES ($1, $2) RETURNING id")
+            sqlx::query_as("INSERT INTO shorten_urls (id, url) VALUES ($1, $2) ON CONFLICT(url) DO UPDATE SET url = EXCLUDED.url RETURNING *")
                 .bind(id)
                 .bind(url)
                 .fetch_one(&self.db)

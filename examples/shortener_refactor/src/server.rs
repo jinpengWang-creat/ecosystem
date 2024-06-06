@@ -3,6 +3,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use axum_extra::extract::WithRejection;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -47,7 +48,10 @@ pub struct ShortenResponse {
 
 async fn shortener_handler(
     State(state): State<AppState>,
-    Json(ShortenRequest { url }): Json<ShortenRequest>,
+    WithRejection(Json(ShortenRequest { url }), _): WithRejection<
+        Json<ShortenRequest>,
+        ShortenError,
+    >,
 ) -> Result<impl IntoResponse, ShortenError> {
     let id = state.shorten(&url).await?;
     let body = Json(ShortenResponse {
