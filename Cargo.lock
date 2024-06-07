@@ -2173,7 +2173,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.5",
- "axum-extra",
+ "axum-macros",
  "dotenvy",
  "http 1.1.0",
  "lazy_static",
